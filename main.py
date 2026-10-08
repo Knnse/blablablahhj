@@ -7,11 +7,11 @@ from aiogram import Bot, Dispatcher, F
 from aiogram.exceptions import TelegramAPIError
 from aiogram.filters import CommandStart
 from aiogram.types import FSInputFile, Message
-
+from aiohttp import web
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not BOT_TOKEN:
-    raise RuntimeError("BOT_TOKEN is missing. Add it in Replit Secrets.")
+    raise RuntimeError("BOT_TOKEN is missing. Add it in Environment Variables.")
 
 ADMIN_ID = 1528769580
 DATABASE_PATH = os.getenv("MESSAGE_DB", "message_history.sqlite3")
@@ -26,6 +26,21 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
 
+# --- Веб-сервер для удержания Render в активном состоянии ---
+async def handle_ping(request):
+    return web.Response(text="Bot is running!")
+
+async def start_web_server():
+    app = web.Application()
+    app.router.add_get("/", handle_ping)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    port = int(os.environ.get("PORT", 8080))
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+
+
+# --- Работа с базой данных ---
 def init_db() -> None:
     with sqlite3.connect(DATABASE_PATH) as db:
         db.execute(
@@ -75,6 +90,7 @@ def get_user_id(admin_message_id: int) -> int | None:
     return row[0] if row else None
 
 
+# --- Обработчики сообщений ---
 @dp.message(CommandStart(), F.chat.type == "private")
 async def start_cmd(message: Message) -> None:
     if message.from_user is None:
@@ -147,9 +163,11 @@ async def handle_message(message: Message) -> None:
 
 async def main() -> None:
     init_db()
+    await start_web_server()
     await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     asyncio.run(main())
+    
