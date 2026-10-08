@@ -6,7 +6,7 @@ import sqlite3
 from aiogram import Bot, Dispatcher, F
 from aiogram.exceptions import TelegramAPIError
 from aiogram.filters import CommandStart
-from aiogram.types import FSInputFile, Message
+from aiogram.types import Message
 from aiohttp import web
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -16,11 +16,6 @@ if not BOT_TOKEN:
 ADMIN_ID = 1528769580
 DATABASE_PATH = os.getenv("MESSAGE_DB", "message_history.sqlite3")
 WELCOME_TEXT = "Хаии!! отправь сюда что угодно и камни ответит как только сможет!💗"
-WELCOME_ANIMATION_PATH = os.path.join(
-    os.path.dirname(__file__),
-    "attached_assets",
-    "a422148f3d2243d8bb6fb0735160b9ab_1791249505344.gif",
-)
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
@@ -29,6 +24,7 @@ dp = Dispatcher()
 # --- Веб-сервер для удержания Render в активном состоянии ---
 async def handle_ping(request):
     return web.Response(text="Bot is running!")
+
 
 async def start_web_server():
     app = web.Application()
@@ -100,19 +96,11 @@ async def start_cmd(message: Message) -> None:
     is_first_start = register_first_start(message.from_user.id)
 
     if is_first_start:
-        try:
-            await message.answer_animation(
-                animation=FSInputFile(WELCOME_ANIMATION_PATH),
-                caption=WELCOME_TEXT,
-            )
-        except (TelegramAPIError, OSError):
-            logging.exception("Не удалось отправить приветственную GIF")
-            await message.answer(WELCOME_TEXT)
+        await message.answer(WELCOME_TEXT)
 
     if is_admin:
         await message.answer(
-            "Бот запущен. Чтобы ответить анониму, ответьте через Reply "
-            "на его сообщение."
+            "Бот запущен. Чтобы ответить анониму, ответьте на соо!"
         )
     elif not is_first_start:
         await message.answer(WELCOME_TEXT)
@@ -126,48 +114,4 @@ async def handle_message(message: Message) -> None:
     if message.from_user.id == ADMIN_ID:
         if message.reply_to_message is None:
             await message.answer(
-                "Чтобы ответить анониму, сделайте Reply на его сообщение."
-            )
-            return
-
-        user_id = get_user_id(message.reply_to_message.message_id)
-        if user_id is None:
-            await message.answer(
-                "Не удалось найти отправителя этого сообщения. "
-                "Возможно, оно было получено до запуска этой версии бота."
-            )
-            return
-
-        try:
-            await message.copy_to(chat_id=user_id)
-        except TelegramAPIError:
-            logging.exception("Не удалось отправить ответ пользователю")
-            await message.answer(
-                "❌ Не удалось отправить ответ. Возможно, пользователь заблокировал бота."
-            )
-        return
-
-    try:
-        copied = await message.copy_to(chat_id=ADMIN_ID)
-        save_message_mapping(copied.message_id, message.from_user.id)
-        await message.answer("Сообщение доставлено! 🤍")
-    except TelegramAPIError:
-        logging.exception("Не удалось доставить сообщение администратору")
-        await message.answer("❌ Не удалось доставить сообщение. Попробуй позже.")
-    except sqlite3.Error:
-        logging.exception("Не удалось сохранить связь сообщения с отправителем")
-        await message.answer(
-            "❌ Сообщение не удалось зарегистрировать для анонимного ответа."
-        )
-
-
-async def main() -> None:
-    init_db()
-    await start_web_server()
-    await dp.start_polling(bot)
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    asyncio.run(main())
-    
+                "Чтобы ответить анониму, ответьте на его соо"
